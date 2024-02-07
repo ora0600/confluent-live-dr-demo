@@ -29,12 +29,33 @@ In our case we do have only one topic which needs to be geo-replicated because o
 
 Now, you can play a little bit in the Cloud UI. This is quite interesting. Check:
 * Cluster Linking Menu (left side)
-* Show Topics in DR Cluster, is data coming from cmprodcluster?
+* Show Topics in DR Cluster, is data coming from cmprod_cluster?
 * etc.
 
-Check producer is the data produced is the same in passive_cmpord_cluster.cmorders topic:
+Check producer is the data produced is the same in passive_cmprod_cluster.cmorders topic:
 ```bash
 kubectl logs cloudconsumercmorders-0 -n confluent
 ```
+
+Now, we have situation after failover. In a cloud native environment we would recommend to fail forward. This means
+
+* the DR region becomes the new Primary region.
+*  cloud regions offer identical service
+* all applications & data systems are now in the DR region
+* failing back would introduce risk with little benefit
+
+To fail forward, simply:
+* Delete topics on original cluster (or spin up new cluster)
+* Establish cluster link in reverse direction
+
+Another Alternative would be to fail back to prod-cluster from DR-cluster.
+
+1. Delete topics on Primary cluster (or spin up a new cluster)
+2. Establish a cluster link in the reverse direction
+3. When Primary has caught up, migrate producers & consumers back:
+    a. Stop clients
+    b. promote mirror topic(s)
+    c. Restart clients pointed at Primary cluster
+
 
 back to [main Readme](ReadME.md)
