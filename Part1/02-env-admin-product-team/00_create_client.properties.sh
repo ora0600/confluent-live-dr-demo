@@ -1,9 +1,5 @@
 #!/bin/bash
 
-pwd > basedir
-export BASEDIR=$(cat basedir)/..
-echo $BASEDIR
-
 # form parameter
 export consumerkey=${1}
 export consumersecret=${2}
@@ -92,6 +88,20 @@ delivery.timeout.ms=120000
 retries=2147483647
 acks=all" >  ../kafkatools_producer.properties
 
+# Consumer Offset Monitoring:
+echo "# Required connection configs for Kafka consumer offset monitoring
+bootstrap.servers=$bootstrap
+security.protocol=SASL_SSL
+sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required username='$consumerkey' password='$consumersecret';
+sasl.mechanism=PLAIN
+# Required for correctness in Apache Kafka clients prior to 2.6
+client.dns.lookup=use_all_dns_ips
+# Best practice for higher availability in Apache Kafka clients prior to 3.0
+session.timeout.ms=45000
+group.id=$groupid
+default.api.timeout.ms=300000" >  ../kafkatools_prod_consumer_offset.properties
+
+
 cp env-source ../../Part2/cold-restore/env-source
 # Switch from prod to dr envionment
 sed -i -e 's/# export TF_VAR_environment_id/## /g' ../../Part2/cold-restore/env-source
@@ -116,9 +126,6 @@ export TF_VAR_source_appmanager_key=$appmanagerkey
 export TF_VAR_source_appmanager_secret=$appmanagersecret
 export TF_VAR_source_envid=$source_envid
 export TF_VAR_cluster_source_id=$cluster_source_id" >> ../../Part2/cold-restore/env-source
-
-# Copy env File to active Passive Setup
-cp ../../Part2/cold-restore/env-source ../../Part3/active-passive/env-source
 
 echo "properties files created"
 

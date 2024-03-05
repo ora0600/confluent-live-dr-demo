@@ -1,0 +1,43 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: dr-cloudproducercmcustomers-secondary
+  namespace: confluent
+  annotations:
+    reloader.stakater.com/auto: "true"
+spec:
+  serviceName: dr-cloudproducercmcustomers-secondary
+  podManagementPolicy: Parallel
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dr-cloudproducercmcustomers-secondary
+  template:
+    metadata:
+      labels:
+        app: dr-cloudproducercmcustomers-secondary
+    spec:
+      containers:
+      - name: dr-cloudproducercmcustomers-secondary
+        image: confluentinc/cp-kafka:latest
+        command:
+        - /bin/sh
+        - -c
+        - |
+          for x in {1..1000}; do echo "{"number":$x,"date":18500$x,"shipping_address":"shipping street $x, $x Shipping-City, Global","cost":$x}"; sleep 2; done | kafka-console-producer --bootstrap-server  $(awk '/bootstrap.servers=/{print $NF}' /mnt/kafkatools_producer_secondary.properties | cut -d'=' -f 2) --topic cmcustomers --producer.config /mnt/kafkatools_producer_secondary.properties
+        volumeMounts:
+        - name: kafka-properties
+          mountPath: /mnt
+      volumes:
+        - name: kafka-properties 
+          secret:
+            secretName: dr-kafka-client-producer-config-secure-secondary
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dr-cloudproducercmcustomers-secondary
+  namespace: confluent
+spec:
+  clusterIP: None

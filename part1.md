@@ -1,10 +1,10 @@
-# Part1: Delegated Administration, Prod-Cluster Creation
+# Part1: Delegated Administration, Prod-Cluster Creation for cold-restore
 
 We will first create a simple environment for the project team. They will get:
 * 2 Confluent Cloud Environments
     1. cmprod for the production cluster
     2. cmprod-dr for the DR clusters
-* Environment-Manager Service Account with Environment Admin role and Account Admin Role binded
+* Environment-Manager Service Account with Environment Admin role and Account Admin Role bind
 
 ## Create Cloud API Keys and Service Account 
 Create a Confluent Cloud API Key as Org-Admin:
@@ -34,8 +34,7 @@ Save the API key and secret. The secret is not retrievable later.
 +------------+------------------------------------------------------------------+
 ```
 
-Your terraform OrgAdmin Service Account is ready to use. Store the API key in Environment Variables or create a File
-Set Environment Variables
+Your terraform OrgAdmin Service Account is ready to use. Store the API key in Environment Variables:
 
 ```bash
 cd Part1/01-kafka-ops-team
@@ -44,7 +43,7 @@ export TF_VAR_confluent_cloud_api_key="KEYXXXXXXXXXXXXX"
 export TF_VAR_confluent_cloud_api_secret="SECRETYYYYYXXXXXXYXYXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 ``` 
 
-Or store Key and secret into a file (will be read by terraform automatically)
+Or store Key and secret into a file `terraform.tfvars` (will be read by terraform automatically)
 
 ```bash
 cd Part1/01-kafka-ops-team
@@ -54,16 +53,18 @@ confluent_cloud_api_secret = "SECRETYYYYYXXXXXXYXYXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 EOF
 ``` 
 
-terraform can now connect to Confluent Cloud and will create a couple of resources.
+terraform is now able to communicate with the Confluent Cloud API and will create a couple of resources.
 
 * Create 2 environments
 * Create new Service Account with API Keys
 
+![Cloud resources to be created in Part1](img/part1_resouces.png)
+
 Start terraform now:
 
 ```bash
-# wwe are in this folder Part1/01-kafka-ops-team
-# First act a Ops team, create Env and env-manager
+# we are in this folder Part1/01-kafka-ops-team
+# First act as Ops team, create Environment and env-manager
 terraform init
 terraform plan
 terraform apply --auto-approve
@@ -77,11 +78,12 @@ terraform apply --auto-approve
 # secret = <sensitive>
 ```
 
-The terraform apply will generate a `env-source` file which will be copied into the product team folder `02-env-admin-product-team`. This file will be used by product team, which includes all they need to work with COnfluent CLoud. (you need to source it soon).
+The `terraform apply` will generate a file:`env-source` , which will be copied into the product team folder `Part1/02-env-admin-product-team` and `Part3/02-env-admin-product-team`. This file will be used by product team, which includes all they need to work with Confluent Cloud. (you need to source it soon). They will operate as Delegated Admin for the both created environments.
 
 ## Build the cloud resource as a product team environment admin 
 
-Now, you can act a Admin Product Team with the Service Account `cmenv-manager`. This pretty fresh created.
+Now, you can act a Admin Product Team with the Service Account `cmenv-manager`. This was pretty fresh created (see section above).
+Create the Prod-Cluster now:
 
 ```bash
 cd ../02-env-admin-product-team
@@ -111,21 +113,25 @@ terraform apply --auto-approve
 # resource-ids = <sensitive>
 ``` 
 
-By default we will use k3s for the client setup. So all clients and secrets will be provision automatically in the default k8s cluster (see `.k9s(config.xml`). If you want to run shell scripts then an iterm2 with shell clients will be opened (optional). If you would like to run shell scripts:
+By default we will use k3s for the client setup. So all clients and secrets will be provision automatically in the default k8s cluster (see `.k9s/config.xml`). If you want to run shell scripts then an `iterm2` with shell clients will be opened (optional, you need to comment the section in `00_create_client.properties.sh` , see below). If you would like to run shell scripts:
 
-* you need to change the "Client 2" section at the end of `00_create_client.properties.sh` and comment the "Client 1" section. and uncomment the "Client 2" section.
+* you need to change the "Client 2" section at the end of `00_create_client.properties.sh` and comment the "Client 1" section and then uncomment the "Client 2" section.
 * If you run k8s, you need to change nothing
 
-A new source file `env-source`is copied to folder `../../Part2/cold-restore/` and `../../Part3/active-passive/` 
+A new source file `env-source` is copied to folder `../../Part2/cold-restore/` and `../../Part3/02-env-admin-product-team/`. We need these environment variables later in our labs.
 
-You will have now deployed a confluent cloud cluster `cmpro_cluster_` in environment `cmprod` and a couple of consumers and producers running in k3s cluster .
-Check the data flowing as followed:
+You have now deployed a confluent cloud cluster `cmpro_cluster_basic` in environment `cmprod` and a couple of consumers and producers running in k3s cluster .
+Check the events flowing as followed:
 
 In Cloud UI: go to cluster in cmprod environment -> Topic and check messages in cmorders
 
 ![Cloud UI cmorders](img/topic_cmorders.png)
 
-Use kubectl tools:
+Or just have a look on Stream lineage and see how the events are flowing.
+
+![Cloud UI Stream lineage](img/stream_lineage.png)
+
+How many clients are running, use kubectl tools:
 ```bash
 # Are the pods running (producer and consumer)?
 kubectl get pods -n confluent
@@ -137,8 +143,10 @@ kubectl get pods -n confluent
 # cloudconsumercmcustomers-0            1/1     Running   0             11m
 # cloudproducercmproducts-0             1/1     Running   0             11m
 # cloudconsumercmorders-0               1/1     Running   0             4s
+
 # Show logged data of consumer
 kubectl logs cloudconsumercmorders-0 -n confluent
+kubectl logs cloudconsumercmcustomers-0 -n confluent
 # ...
 # {number:417,date:18500417,shipping_address:shipping street 417, 417 Shippping-City, Global,cost:417}
 # {number:418,date:18500418,shipping_address:shipping street 418, 418 Shippping-City, Global,cost:418}
@@ -146,26 +154,39 @@ kubectl logs cloudconsumercmorders-0 -n confluent
 # ...
 ``` 
 
-Consumers and producers running in k8s cluster and doing there job.
-by the way I only use kafka tools. This make much more easier not non-developers. The Producer is just a FOR Loop and Producing stupid data.
+List topics on Prod-Cluster:
 
+```bash
+./00_list_all_topics.sh
+```
+
+Consumers and producers running in k8s cluster and doing their job.
+By the way I only use kafka tools. This makes it much more easier for non-developers. The Producer is just a "FOR Loop" and Producing stupid data.
+
+# Monitor offset of Consumper Group
+
+Run:
+
+```bash
+./00_run_offset_monitor.sh
+```
 
 ## Simulate Cluster Break
 
-If you would like to use all the demos in one session, then please do not break the prod-cluster, because we need this cluster later for clusting link setup for active-passive and active-active-DR.
-If you want to use only the cold-restore, you can the cluster.
-Imagine we would destroy the prod-cluster. Just do terraform destroy in folder `Part1/02-env-admin-product-team`
+I will not destroy the cluster, just the moving the clients later. But if you want to destroy:
+* To simulate a cluster break, delete the cluster.
+* Imagine we would destroy the prod-cluster. Just do terraform destroy in folder `Part1/02-env-admin-product-team`
 
 ```bash
-# Desttoy only the cluster
+# Destroy the prod cluster
 terraform destroy --target confluent_kafka_cluster.basic
 ``` 
 
-Cluster will be then destroyed by terraform, including all resources, liked binded cluster roles, topics, cluster keys etc.
+Cluster will be then destroyed by terraform, including all resources, like cluster roles, topics, cluster keys etc.
 Results:
 * Consumer breaks immediately: group authorization failed, pod will be terminated `kubectl get pods -n confluent`
-* procucer still in loop trying to produce: Error: Connection to Node?
+* producer still in loop trying to produce: Error: Connection to Node?
 
-But, we let prod cluster as it is, build a new cluster (cold restore) and refresh the client configs, and the clients will start automatically.
+After break (or non break) we build a new cluster (cold restore) and refresh the client configs, and the clients will start automatically on the new cluster.
 
-back to [main Readme and continue witgh Part2](ReadMe.md)
+back to [continue with Part2 Cold-Restore](part2.md)

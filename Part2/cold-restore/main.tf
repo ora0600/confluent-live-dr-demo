@@ -86,17 +86,60 @@ resource "confluent_api_key" "cmapp-manager-kafka-api-key" {
 }
 
 # ---------------------------------------------------
-# Create Topic cmorder as 'cmapp-manager' service account
+# Create Topic cmorders as 'cmapp-manager' service account
 # ---------------------------------------------------
 resource "confluent_kafka_topic" "cmorders" {
   kafka_cluster {
     id = confluent_kafka_cluster.basic.id
   }
   topic_name    = "cmorders"
+  partitions_count   = 1
   rest_endpoint = confluent_kafka_cluster.basic.rest_endpoint
   credentials {
    key    = confluent_api_key.cmapp-manager-kafka-api-key.id
    secret = confluent_api_key.cmapp-manager-kafka-api-key.secret
+  }
+  depends_on = [
+    confluent_api_key.cmapp-manager-kafka-api-key,
+    confluent_kafka_cluster.basic,
+    confluent_role_binding.cmapp-manager-kafka-cluster-admin
+  ]
+}
+
+# ---------------------------------------------------
+# Create Topic cmcustomers as 'cmapp-manager' service account
+# ---------------------------------------------------
+resource "confluent_kafka_topic" "cmcustomers" {
+  kafka_cluster {
+    id = confluent_kafka_cluster.basic.id
+  }
+  topic_name    = "cmcustomers"
+  partitions_count   = 1
+  rest_endpoint = confluent_kafka_cluster.basic.rest_endpoint
+  credentials {
+    key    = confluent_api_key.cmapp-manager-kafka-api-key.id
+    secret = confluent_api_key.cmapp-manager-kafka-api-key.secret
+  }
+  depends_on = [
+    confluent_api_key.cmapp-manager-kafka-api-key,
+    confluent_kafka_cluster.basic,
+    confluent_role_binding.cmapp-manager-kafka-cluster-admin
+  ]
+}
+
+# ---------------------------------------------------
+# Create Topic cmproducts as 'cmapp-manager' service account
+# ---------------------------------------------------
+resource "confluent_kafka_topic" "cmproducts" {
+  kafka_cluster {
+    id = confluent_kafka_cluster.basic.id
+  }
+  topic_name    = "cmproducts"
+  partitions_count   = 1
+  rest_endpoint = confluent_kafka_cluster.basic.rest_endpoint
+  credentials {
+    key    = confluent_api_key.cmapp-manager-kafka-api-key.id
+    secret = confluent_api_key.cmapp-manager-kafka-api-key.secret
   }
   depends_on = [
     confluent_api_key.cmapp-manager-kafka-api-key,
@@ -175,6 +218,41 @@ resource "confluent_kafka_acl" "cmapp-producer-write-on-topic" {
   }
 }
 
+resource "confluent_kafka_acl" "cmapp-producer-write-on-cmcustomers" {
+  kafka_cluster {
+    id = confluent_kafka_cluster.basic.id
+  }
+  resource_type = "TOPIC"
+  resource_name = confluent_kafka_topic.cmcustomers.topic_name
+  pattern_type  = "LITERAL"
+  principal     = "User:${var.cmapp_producer_id}"
+  host          = "*"
+  operation     = "WRITE"
+  permission    = "ALLOW"
+  rest_endpoint = confluent_kafka_cluster.basic.rest_endpoint
+  credentials {
+    key    = confluent_api_key.cmapp-manager-kafka-api-key.id
+    secret = confluent_api_key.cmapp-manager-kafka-api-key.secret
+  }
+}
+
+resource "confluent_kafka_acl" "cmapp-producer-write-on-cmproducts" {
+  kafka_cluster {
+    id = confluent_kafka_cluster.basic.id
+  }
+  resource_type = "TOPIC"
+  resource_name = confluent_kafka_topic.cmproducts.topic_name
+  pattern_type  = "LITERAL"
+  principal     = "User:${var.cmapp_producer_id}"
+  host          = "*"
+  operation     = "WRITE"
+  permission    = "ALLOW"
+  rest_endpoint = confluent_kafka_cluster.basic.rest_endpoint
+  credentials {
+    key    = confluent_api_key.cmapp-manager-kafka-api-key.id
+    secret = confluent_api_key.cmapp-manager-kafka-api-key.secret
+  }
+}
 
 # ---------------------------------------------------
 # Create ACL for Service Accounts: cmapp-consumer
@@ -196,6 +274,43 @@ resource "confluent_kafka_acl" "cmapp-consumer-read-on-topic" {
     secret = confluent_api_key.cmapp-manager-kafka-api-key.secret
   }
 }
+
+resource "confluent_kafka_acl" "cmapp-consumer-read-on-cmcustomers" {
+  kafka_cluster {
+    id = confluent_kafka_cluster.basic.id
+  }
+  resource_type = "TOPIC"
+  resource_name = confluent_kafka_topic.cmcustomers.topic_name
+  pattern_type  = "LITERAL"
+  principal     = "User:${var.cmapp_consumer_id}"
+  host          = "*"
+  operation     = "READ"
+  permission    = "ALLOW"
+  rest_endpoint = confluent_kafka_cluster.basic.rest_endpoint
+  credentials {
+    key    = confluent_api_key.cmapp-manager-kafka-api-key.id
+    secret = confluent_api_key.cmapp-manager-kafka-api-key.secret
+  }
+}
+
+resource "confluent_kafka_acl" "cmapp-consumer-read-on-cmproducts" {
+  kafka_cluster {
+    id = confluent_kafka_cluster.basic.id
+  }
+  resource_type = "TOPIC"
+  resource_name = confluent_kafka_topic.cmproducts.topic_name
+  pattern_type  = "LITERAL"
+  principal     = "User:${var.cmapp_consumer_id}"
+  host          = "*"
+  operation     = "READ"
+  permission    = "ALLOW"
+  rest_endpoint = confluent_kafka_cluster.basic.rest_endpoint
+  credentials {
+    key    = confluent_api_key.cmapp-manager-kafka-api-key.id
+    secret = confluent_api_key.cmapp-manager-kafka-api-key.secret
+  }
+}
+
 
 resource "confluent_kafka_acl" "cmapp-consumer-read-on-group" {
   kafka_cluster {

@@ -25,7 +25,7 @@ resource "confluent_environment" "cmprod-dr" {
 
 resource "confluent_service_account" "cmenv-manager" {
   display_name = "cmenv-manager"
-  description  = "Service account to manage resources under 'cmprod' ND 'cmprod-dr' environment"
+  description  = "Service account to manage resources under 'cmprod' and 'cmprod-dr' environment"
 }
 
 resource "confluent_role_binding" "cmenv-manager-env-admin-cmprod" {

@@ -26,6 +26,18 @@ variable "region" {
   default     = "eu-central-1"
 }
 
+variable "csp_dr" {
+  description = "Cloud Provicer"
+  type        = string
+  default     = "GCP"
+}
+
+variable "region_dr" {
+  description = "Region of CSP"
+  type        = string
+  default     = "europe-west1"
+}
+
 variable "sr_package" {
   description = "Package of Schema Registry"
   type        = string
@@ -35,13 +47,19 @@ variable "sr_package" {
 variable "cluster_name" {
   description = "Name of Kafka Cluster"
   type        = string
-  default     = "cmprod_cluster"
+  default     = "cmprod_primary_cluster"
+}
+
+variable "cluster_name_dr" {
+  description = "Name of Kafka Cluster"
+  type        = string
+  default     = "cmprod_secondary_cluster"
 }
 
 variable "cluster_type" {
   description = "TYPE of Kafka Cluster"
   type        = string
-  default     = "BASIC"
+  default     = "DEDICATED"
 }
 
 

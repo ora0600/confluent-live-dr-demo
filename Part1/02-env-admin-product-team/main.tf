@@ -47,7 +47,18 @@ resource "confluent_kafka_cluster" "basic" {
   availability = "SINGLE_ZONE"
   cloud        = var.csp
   region       = var.region
-  basic {}
+  
+  dynamic "basic" {
+    for_each = [for value in [var.cluster_type] : value if value == "BASIC"]
+    content {
+    }
+  }
+  dynamic "dedicated" {
+    for_each = [for value in [var.cluster_type] : value if value == "DEDICATED"]
+    content {
+      cku = 1
+    }
+  }
   environment {
     id = data.confluent_environment.cmprod.id
   }
@@ -100,6 +111,7 @@ resource "confluent_kafka_topic" "cmorders" {
     id = confluent_kafka_cluster.basic.id
   }
   topic_name    = "cmorders"
+  partitions_count   = 1
   rest_endpoint = confluent_kafka_cluster.basic.rest_endpoint
   credentials {
     key    = confluent_api_key.cmapp-manager-kafka-api-key.id
@@ -115,6 +127,7 @@ resource "confluent_kafka_topic" "cmcustomers" {
     id = confluent_kafka_cluster.basic.id
   }
   topic_name    = "cmcustomers"
+  partitions_count   = 1
   rest_endpoint = confluent_kafka_cluster.basic.rest_endpoint
   credentials {
     key    = confluent_api_key.cmapp-manager-kafka-api-key.id
@@ -130,6 +143,7 @@ resource "confluent_kafka_topic" "cmproducts" {
     id = confluent_kafka_cluster.basic.id
   }
   topic_name    = "cmproducts"
+  partitions_count   = 1
   rest_endpoint = confluent_kafka_cluster.basic.rest_endpoint
   credentials {
     key    = confluent_api_key.cmapp-manager-kafka-api-key.id

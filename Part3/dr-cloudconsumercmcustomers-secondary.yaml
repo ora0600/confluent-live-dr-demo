@@ -1,0 +1,43 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: dr-cloudconsumercmcustomers-secondary
+  namespace: confluent
+  annotations:
+    reloader.stakater.com/auto: "true"
+spec:
+  serviceName: dr-cloudconsumercmcustomers-secondary
+  podManagementPolicy: Parallel
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dr-cloudconsumercmcustomers-secondary
+  template:
+    metadata:
+      labels:
+        app: dr-cloudconsumercmcustomers-secondary
+    spec:
+      containers:
+      - name: dr-cloudconsumercmcustomers-secondary
+        image: confluentinc/cp-kafka:latest
+        command:
+        - /bin/sh
+        - -c
+        - |
+          kafka-console-consumer --bootstrap-server  $(awk '/bootstrap.servers=/{print $NF}' /mnt/kafkatools_consumer_secondary.properties | cut -d'=' -f 2) --topic cmcustomers mirror-cmcustomers --consumer.config /mnt/kafkatools_consumer_secondary.properties
+        volumeMounts:
+        - name: kafka-properties
+          mountPath: /mnt
+      volumes:
+        - name: kafka-properties 
+          secret:
+            secretName: dr-kafka-client-consumer-config-secure-secondary
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dr-cloudconsumercmcustomers-secondary
+  namespace: confluent
+spec:
+  clusterIP: None
