@@ -1,8 +1,9 @@
-# Part 2: Do cold restore for broker prod cluster
+# Part 2: Do cold restore for prod cluster
 
 Build a new  Cluster with same resources and switch clients to new cluster. For this DR case customers typically has not the requirement of any data replication because their leading systems are outside of Kafka cluster and will be integrated via clients like connectors. Our clients simulate this.
 
 Source the environment variables, including all Service Accounts.
+
 ```bash
 cd ../../Part2/cold-restore/
 # We will now use the cmprod-dr environment 
@@ -10,7 +11,7 @@ cd ../../Part2/cold-restore/
 source env-source
 ```
 
-Build new (basic) cluster in cmprod-dr environment and generate new Keys for the client Service Accounts:
+Build new (basic) cluster in `cmprod-dr` environment and generate new keys for the client Service Accounts:
 
 ```bash
 terraform init
@@ -32,9 +33,9 @@ terraform apply --auto-approve
 # resource-ids = <sensitive>
 ``` 
 
-The `terraform apply` will generate new client properties files and load them into k8s secrets. So to say do a rewrite. The reloader then starts the clients automatically with the new config. All clients will be moved automatically to new DR cluster and running now with DR Cluster.
+The `terraform apply` will generate new client properties files and load them into k8s secrets. So to say do a rewrite of login credentials of all clients. The reloader then starts the clients automatically with the new config. All clients will be moved automatically to new DR cluster and running now with DR Cluster.
 Clients are writing now into dr cluster and reading from it.
-Check: 
+Check:
 
 * in Cloud UI: go to cluster in cmprod-dr environment -> Topic and check messages in cmorders
 * use kubectl tools:
@@ -54,7 +55,7 @@ kubectl get pods -n confluent
 kubectl logs cloudconsumercmorders-0 -n confluent
 ``` 
 
-Consumers and producers are running now in cmprod-dr cluster and throughput is increasing
+Consumers and producers are running now on `cmprod-dr` cluster and throughput is increasing
 
 ![DR-Cluster Traffic is increasing](img/dr_cluster_throughput.png)
 
@@ -62,21 +63,24 @@ On prod cluster the throughput went to 0.
 
 ![Prod-Cluster Traffic is 0](img/prod_cluster_throughput.png)
 
-
 Check Topics:
+
 ```bash
 ./00_list_all_topics.sh
 ```
 
 Check Offset Monitoring:
+
 ```bash
 ./00_run_offset_monitor.sh
 ```
+
 As you see there is no consumer offset sync, consumer start from latest on DR cluster.
 
 ## Switchback clients
 
 Switch Back client to Prod
+
 ```bash
 cd ../../Part1/02-env-admin-product-team/
 # Run shell script to load the client properties from prodcluster into k8s secrets.
@@ -87,38 +91,24 @@ kubectl get pods -n confluent
 
 Clients are back on cmprod_cluster.
 
-# Development-HINT:
+## Development-HINT:
+
 <table><tr><td>My simple demo is just for show-case a DR scenario with a really simple case. From a coding perspective it would be better if you structure your IaaS in modules.</td></tr></table>
 
-# Destroy Cold Restore Cluster: Part 1 and Part2
+## Destroy Cold Restore Cluster: Part 1 and Part2
 
-# Destroy
-Destroy the complete demo:
+### Destroy k8s clients
 
-## Destroy k3s
 First the pods and secrets:
 
 ```bash
 cd Part1 # or Part4/active-active
 # Pods
-kubectl get pods -n confluent
-kubectl delete  -f cloudconsumercmorders.yaml --namespace confluent
-kubectl delete  -f cloudproducercmorders.yaml --namespace confluent
-kubectl delete  -f cloudconsumercmproducts.yaml --namespace confluent
-kubectl delete  -f cloudproducercmproducts.yaml --namespace confluent
-kubectl delete  -f cloudproducercmcustomers.yaml --namespace confluent
-kubectl delete  -f cloudconsumercmcustomers.yaml  --namespace confluent
-# all pods should be terminated or in termination
-kubectl get pods -n confluent
+./03_destroy_clients_on_k8s.sh
+```
 
-# Secrets
-kubectl get secrets -n confluent
-kubectl delete secret kafka-client-consumer-config-secure -n confluent
-kubectl delete secret kafka-client-producer-config-secure -n confluent
-kubectl get secrets -n confluent
-``` 
+### Shutdown k8s cluster
 
-## Shutdown k3 cluster
 ```bash
 ssh -i ~/keys/k3s-key ubuntu@cpworker1
 sudo shutdown -h now
@@ -130,7 +120,7 @@ ssh -i ~/keys/k3s-key ubuntu@cpmaster
 sudo shutdown -h now
 ```
 
-## Destroy DR cluster from cold-restore
+### Destroy DR cluster from cold-restore
 
 ```bash
 cd ../Part2/cold-restore
@@ -138,7 +128,7 @@ source env-source
 terraform destroy
 ```
 
-## Destroy Prod Cluster
+### Destroy Prod Cluster
 
 ```bash
 cd ../../Part1/02-env-admin-product-team
@@ -146,14 +136,14 @@ source env-source
 terraform destroy
 ```
 
-## Destroy Env and Env-Manager
+### Destroy Env and Env-Manager
 
 ```bash
 cd ../01-kafka-ops-team
 terraform destroy
 ```
 
-## Client properties files
+### Client properties files
 
 ```bash
 cd ../..

@@ -4,7 +4,7 @@
 cp ../kafkatools_consumer_primary.properties ../kafkatools_consumer.properties
 cp ../kafkatools_producer_primary.properties ../kafkatools_producer.properties
 
-# Deploy olds secrets back
+# Deploy olds secrets back./01_switchback_client.properties.sh 
 kubectl create secret generic dr-kafka-client-consumer-config-secure --save-config --dry-run=client --from-file=../kafkatools_consumer.properties -o yaml | kubectl apply -f -
 kubectl create secret generic dr-kafka-client-producer-config-secure --save-config --dry-run=client --from-file=../kafkatools_producer.properties -o yaml | kubectl apply -f -
 

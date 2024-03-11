@@ -1,19 +1,20 @@
-# Cluster Setup with an active DR design for the Apps Design
+# Cluster Setup with an DR Apps design
 
-here we cover
+The Part3 covers
+
 * active-passive Cluster DR design
 * active-active Cluster DR design
 
 Both are working with Cluster Linking (Replicator is not covered in this repo).
 
-# Create Dedicated Cluster setup with Cluster Links
+## Create Dedicated Cluster setup with Cluster Links
 
 We use the same OrgAdmin API Key mentioned in [Part1: Create Cloud API Keys and Service Account](part1.pmd).
 Store the API key in Environment Variables:
 
 ```bash
 cd Part3/01-kafka-ops-team
-# SA tf_cmrunner_cmue
+# SA tf_cmrunner
 export TF_VAR_confluent_cloud_api_key="KEYXXXXXXXXXXXXX"
 export TF_VAR_confluent_cloud_api_secret="SECRETYYYYYXXXXXXYXYXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 ``` 
@@ -30,7 +31,7 @@ EOF
 
 terraform is now able to communicate with the Confluent Cloud API and will create a couple of resources.
 
-* Create 1 environments `cmprod-active`, this time I have both clusters in one environment. Typically you will use 2 environment, because the Schema Reqistry would also effected in DR case, and Schema can be sync into a new region with Schema Linking.
+* Create 1 environments `cmprod-active`, this time I have both clusters in one environment. Typically you will use 2 environments, because the Schema Registry would also effected in a DR case, and Schemas can be synched into a new region with Schema Linking.
 * Create new Env Manager Service Account with API Keys
 
 ![Cloud resources to be created in Part3](img/part3_resouces.png)
@@ -60,7 +61,7 @@ The `terraform apply` will generate a file:`env-source` , which will be copied i
 Now, you can act a Admin Product Team with the Service Account `cmenv-drmanager`. This was pretty fresh created (see section above).
 Create the Prod-Cluster setup including the DR cluster and 2 cluster links now:
 
-In this lab we will create a active and passive DR Clusters with Cluster Linking. This cluster is from type dedicated and costs more money than basic. Please check [price list](https://www.confluent.io/confluent-cloud/pricing/) before continue. 
+In this lab we will create a active and passive DR Clusters with Cluster Linking. This cluster is from type dedicated and costs more money than basic. Please check [price list](https://www.confluent.io/confluent-cloud/pricing/) before continue.
 
 ```bash
 cd ../02-env-admin-product-team
@@ -73,23 +74,35 @@ terraform apply --auto-approve
 terraform output resource-ids
 ```
 
-Two dedicated cluster in two different regions and cloud providers are created.
+Two dedicated cluster in two different regions and two different cloud providers are created. This is Gold-Standard for DR.
 ![DR Design clusters](img/clusters.png)
 
-These clusters are linked with two cluster links.
+These clusters are linked with three cluster links.
 ![DR Design clusters](img/cluster_links.png)
 
 Now, you can start the clients:
+
 ```bash
 ./00_start_clients.sh
 ```
 
+In total I started 6 clients on prod cluster
+
+* 3 Consumer
+![consumers](img/consumer.png)
+
+* 3 Producer
+![producers](img/producer.png)
+
+* And we have clients for the cluster links running.
+
 ## Active-Passive Cluster setup
 
-Two Clusters from type dedicated are running in environment cmprod-active.
+Two Clusters from type dedicated are running in our environment `cmprod-active`.
 
 Both dedicated clusters are with Public network endpoints, a test topic in source cluster , a one-directional-cluster-link between both clusters and a mirror topic on the test topic.
 The cluster link will get the following config set:
+
 * consumer.offset.sync.enable=true
 * consumer.offset.group.filters={"groupFilters": [{"name": "*","patternType": "LITERAL","filterType": "INCLUDE"}]}
 * consumer.offset.sync.ms=1000
@@ -98,26 +111,38 @@ The cluster link will get the following config set:
 * acl.filters={ "aclFilters": [ { "resourceFilter": { "resourceType": "any", "patternType": "any" }, "accessFilter": { "operation": "any", "permissionType": "any" } } ] }
 * topic.config.sync.ms=1000
 
-The idea now is not to copy the complete content from primary_cluster to secondary_cluster. We run special SLA for special resources.
-Only Gold SLA Topics should be in our DR setup. These are topics with a high requirement regarding downtime and HA in general.
+The idea now is not to copy the complete content from **primary_cluster** to **secondary_cluster**. We run special SLA for special resources.
+Only Gold SLA Topics should be in our DR setup. These are topics with a high requirement regarding uptime and HA in general.
 There are couple of resources (topics) marked as GOLD and documented in `cat Part3/active-passive/scripts/sla_gold_topics.txt`. Only these resources will be mirrored in secondary_cluster.
 
-Running the SLA based DR Plan: 
+### Running the SLA based DR Plan
+
 In our case we do have only one topic which needs to be geo-replicated because of high HA requirements.
 
 ```bash
 cd ../active-passive/
 source env-destination 
 ./scripts/00_create_mirror_topics.sh
+# Press Enter if you asked for
 ```
 
-Now, you can play a little bit in the Cloud UI. This is quite interesting. Check:
+After fail-over and client switch, only two clients are running on secondary cluster:
+
+* the producer for topic cmorders (stopped mirror topic)
+* and the consumer for topic cmorders
+
+![clients on secondary cluster](img/client_secondary_cluster.png)
+
+Now, you can play a little bit in the Cloud UI. This is quite interesting.
+Check:
+
 * Cluster Linking Menu (left side)
-* Show Topics in DR Cluster, is data coming from cmprod_primary_cluster?
-* Is client running now on seconday cluster?
+* Show Topics in DR Cluster, is data coming from `cmprod_primary_cluster`?
+* Is client running now on secondary cluster?
 * etc.
 
 Check producer and data consumer is now running on mirrored topic in secondary_cluster:
+
 ```bash
 # Check client is now running on secondary cluster
 kubectl logs prod-cloudconsumercmorders-0 -n confluent
@@ -125,6 +150,10 @@ kubectl logs prod-cloudconsumercmorders-0 -n confluent
 ./00_list_all_topics.sh
 # check if offset on secondary cluster looks good
 ./00_run_offset_monitor.sh
+# compare with offset from prod cluster
+cd ../02-env-admin-product-team/
+./00_run_offset_monitor.sh
+cd ../active-passive/
 # run confluent cli
 confluent kafka mirror describe cmorders --cluster $cluster_destination_id --environment $destination_envid --link passive-primary-secondary-cluster
 ```
@@ -143,7 +172,7 @@ To fail forward, simply:
 * Delete topics on original cluster (or spin up new cluster)
 * Establish cluster link in reverse direction (or bidirectional cluster link was created, not here. see active-active)
 
-### Failback
+### Fail back
 
 Another Alternative would be to fail back to prod-cluster from DR-cluster.
 
@@ -167,7 +196,8 @@ confluent kafka mirror describe cmorders --cluster $cluster_destination_id --env
 #  Link Name      |Mirror Topic| Source Topic | Mirror Status | Status Time (ms) | Partition | Partition Mirror Lag | Last Source Fetch Offset  
 #-----------------+------------+--------------+---------------+------------------+-----------+----------------------+--------------------------
 #  passive-primary| cmorders   | cmorders     | STOPPED       |    1708443298951 |         0 |                    0 |                     1368  
-#   -secondary-cluster 
+#  -secondary-
+#  cluster 
 ```
 
 2. With those offsets in hand, point consumers at your original cluster, and reset their offsets to those you found in. Your consumers can then recover the data and act on it as appropriate for their application. Or use replicator to add data into DR cluster topics
@@ -176,14 +206,21 @@ confluent kafka mirror describe cmorders --cluster $cluster_destination_id --env
 
 First switch back clients to Primary Cloud:
 
+* The producer for cmorders
+* The consumer for cmorders
+
 ```bash
-cd Part3/active-passive
+cd ../active-passive
 ./01_switchback_client.properties.sh 
 kubectl get pods -n confluent
 kubectl logs prod-cloudconsumercmorders-0 -n confluent
+# Check Offsets
+./00_run_offset_monitor.sh
 ```
 
-For the active-active Part we use bi-directional Cluster Link `active-primary-secondary-cluster`.
+The offset is now again very different. On Primary we start where we leave, on Secondary we do have higher offset, because we failed-over and switched clients.
+
+For the active-active Part we use bi-directional Cluster Link `active-primary-secondary-cluster` and `active-secondary-primary-cluster`.
 
 The cluster link will get the following config set:
 * consumer.offset.sync.enable=true
@@ -199,14 +236,16 @@ The cluster link will get the following config set:
 cd ../active-active
 source env-destination
 confluent kafka link describe active-primary-secondary-cluster --cluster $cluster_source_id --environment $source_envid
+confluent kafka link describe active-secondary-primary-cluster --cluster $cluster_destination_id --environment $destination_envid
 ```
 
 The idea now is follow that [tutorial](https://docs.confluent.io/cloud/current/multi-cloud/cluster-linking/dr-failover.html#active-active-tutorial) in a script.
+
 * Create writable topics
-    a. prod: cmorders on dr: cmorder
+    a. prod: cmorders on dr: mirror-cmorders
 * Create one cluster link in bidirectional mode
 
-The idea is the same we do not copy the complete content from prod_cluster to active DR cluster and vice verso. We have special SLA for special resources. We call it Gold SLA.
+We follow here the SLA DR Plan: do not copy the complete content from primary cluster to secondary cluster and vice verso. We have special SLA for special resources. We call it Gold SLA.
 There are couple resources marked as GOLD  and documented in `cat scripts/sla_gold_topics.txt`. Only these resources will be mirrored in on both clusters.
 
 Running the SLA based DR Plan: 
@@ -214,50 +253,79 @@ In our case we do have only one topic which needs to be geo-replicated because o
 
 ```bash
 ./scripts/00_create_mirror_topics.sh
+# Press enter if you asked for
+kubectl get pods -n confluent
 kubectl logs dr-cloudconsumercmcustomers-primary-0 -n confluent
 kubectl logs dr-cloudconsumercmcustomers-secondary-0 -n confluent
-``` 
+kubectl logs dr-cloudproducercmcustomers-primary-0 -n confluent
+kubectl logs dr-cloudproducercmcustomers-secondary-0 -n confluent
+```
 
-We did setup an active-active disaster recovery setup for cmcustomer topic.
+We do have now following clients structure:
+
+* Primary: 
+  * prod-cloudconsumercmorders and 
+  * prod-cloudproducercmorders
+  * dr-cloudconsumercmcustomers-primary and
+  * dr-cloudproducercmcustomers-primary
+* Secondary
+  * dr-cloudproducercmcustomers-secondary and
+  * dr-cloudconsumercmcustomers-secondary
+
+
+The next script show the cycle of mirror between clusters. Here you need iTerm installed and a MAC. I am using OASCRIPT here:
+
+```bash
+# Check Mirror Cycle
+./01_check_mirror_cycle.sh
+# Or manually
+# Primary topics consumer group simualation
+kafka-console-consumer --bootstrap-server  $(awk '/bootstrap.servers=/{print $NF}' ../kafkatools_consumer_primary.properties | cut -d'=' -f 2) --topic cmcustomers --consumer.config ../kafkatools_consumer_primary.properties
+kafka-console-consumer --bootstrap-server  $(awk '/bootstrap.servers=/{print $NF}' ../kafkatools_consumer_primary.properties | cut -d'=' -f 2) --topic mirror-cmcustomers --consumer.config ../kafkatools_consumer_primary.properties
+# Secondary topics consumer group simulation
+kafka-console-consumer --bootstrap-server  $(awk '/bootstrap.servers=/{print $NF}' ../kafkatools_consumer_secondary.properties | cut -d'=' -f 2) --topic cmcustomers --consumer.config ../kafkatools_consumer_secondary.properties
+kafka-console-consumer --bootstrap-server  $(awk '/bootstrap.servers=/{print $NF}' ../kafkatools_consumer_secondary.properties | cut -d'=' -f 2) --topic mirror-cmcustomers --consumer.config ../kafkatools_consumer_secondary.properties
+```
+
+Bug: Consumer on cmcustomers in primary cluster (first window in iterm), do not show any data. Please use cloud UI instead.
+
+
+We did setup an active-active disaster recovery setup for `cmcustomers` topic.
 ![DR setup](img/cmcustomer_dr_setup.png)
 
-
 Now, you can play a little bit in the Cloud UI. This is quite interesting. Check:
+
 * Cluster Linking Menu (left side)
-* Show Topics in DR Cluster, is data coming from cmprod_cluster?
+* Show Topics in secondary Cluster, is data coming from primary cluster?
 * etc.
 
 Play-Around with active-active setup now. See [docu](https://docs.confluent.io/cloud/current/multi-cloud/cluster-linking/dr-failover.html#active-active-tutorial) 
 
-# Destroy dedicated cluster setup
+## Destroy dedicated cluster setup
 
-## Clients
+### Clients
 
 ```bash
 cd Part3/
-kubectl get pods -n confluent
-kubectl delete  -f prod-cloudconsumercmorders.yaml  --namespace confluent
-kubectl delete  -f dr-cloudproducercmcustomers-primary.yaml  --namespace confluent
-kubectl delete  -f dr-cloudproducercmcustomers-secondary.yaml  --namespace confluent
-kubectl delete  -f prod-cloudproducercmorders.yaml  --namespace confluent
-kubectl delete  -f dr-cloudconsumercmcustomers-primary.yaml  --namespace confluent
-kubectl delete  -f dr-cloudconsumercmcustomers-secondary.yaml  --namespace confluent
-# all pods should be terminated or in termination
-kubectl get pods -n confluent
-# Secrets
-kubectl get secrets -n confluent
-kubectl delete secret kafka-client-consumer-config-secure -n confluent
-kubectl delete secret kafka-client-producer-config-secure -n confluent
-kubectl delete secret dr-kafka-client-producer-config-secure -n confluent
-kubectl delete secret dr-kafka-client-consumer-config-secure -n confluent
-kubectl delete secret dr-kafka-client-consumer-config-secure-primary  -n confluent
-kubectl delete secret dr-kafka-client-producer-config-secure-primary -n confluent
-kubectl delete secret dr-kafka-client-producer-config-secure-secondary -n confluent
-kubectl delete secret dr-kafka-client-consumer-config-secure-secondary -n confluent
-kubectl get secrets -n confluent
+./03_destroy_k8s_clients.sh
 ```
 
-## Confluent cloud cluster
+### Shutdown k8s cluster
+
+```bash
+ssh -i ~/keys/k3s-key ubuntu@cpworker1
+sudo shutdown -h now
+ssh -i ~/keys/k3s-key ubuntu@cpworker2
+sudo shutdown -h now
+ssh -i ~/keys/k3s-key ubuntu@cpworker3
+sudo shutdown -h now
+ssh -i ~/keys/k3s-key ubuntu@cpmaster
+sudo shutdown -h now
+```
+
+### Confluent cloud cluster
+
+delete the mirror topics first in Cloud UI: Look at each link.
 
 ```bash
 cd 02-env-admin-product-team/
@@ -269,6 +337,6 @@ cd ../01-kafka-ops-team/
 terraform destroy
 ```
 
-When you got no errors all Confluent Cloud resources should be deleted.
+When you got no errors all Confluent Cloud resources should be deleted now.
 
 back to [main Readme](ReadME.md)

@@ -28,6 +28,14 @@ while read i; do
     confluent kafka mirror create mirror-${i} --source-topic ${i} --cluster $cluster_source_id --environment $source_envid --link active-primary-secondary-cluster
     confluent kafka acl create --allow --service-account $consumer_said --operations read,describe --topic mirror-${i} --cluster $cluster_source_id --environment $source_envid
     confluent kafka acl create --allow --service-account $consumer_said --operations read,describe --topic mirror-${i} --cluster $cluster_destination_id --environment $destination_envid
+    confluent kafka acl create --allow --service-account $consumer_said --operations read,describe --topic ${i} --cluster $cluster_source_id --environment $source_envid
+    confluent kafka acl create --allow --service-account $consumer_said --operations read,describe --topic ${i} --cluster $cluster_destination_id --environment $destination_envid
+    #confluent kafka acl create --allow --service-account $consumer_said --operations read,describe --topic cmcustomers --cluster $cluster_source_id --environment $source_envid
+    #confluent kafka acl create --allow --service-account $consumer_said --operations read,describe --topic cmcustomers --cluster $cluster_destination_id --environment $destination_envid
+    confluent kafka acl create --allow --service-account $consumer_said --operations read --consumer-group $groupid --cluster $cluster_source_id --environment $source_envid
+    confluent kafka acl create --allow --service-account $consumer_said --operations read --consumer-group $groupid --cluster $cluster_destination_id --environment $destination_envid
+    confluent kafka acl create --allow --service-account $producer_said --operations write --topic cmcustomers --cluster $cluster_source_id --environment $source_envid
+    confluent kafka acl create --allow --service-account $producer_said --operations write --topic cmcustomers --cluster $cluster_destination_id --environment $destination_envid
   fi 
 done <$sla_file
 echo "Press enter to continue with start clients..."

@@ -25,7 +25,7 @@ spec:
         - /bin/sh
         - -c
         - |
-          kafka-console-consumer --bootstrap-server  $(awk '/bootstrap.servers=/{print $NF}' /mnt/kafkatools_consumer_primary.properties | cut -d'=' -f 2) --topic cmcustomers mirror-cmcustomers --consumer.config /mnt/kafkatools_consumer_primary.properties
+          kafka-console-consumer --bootstrap-server  $(awk '/bootstrap.servers=/{print $NF}' /mnt/kafkatools_consumer_primary.properties | cut -d'=' -f 2) --topic cmcustomers --consumer.config /mnt/kafkatools_consumer_primary.properties
         volumeMounts:
         - name: kafka-properties
           mountPath: /mnt
