@@ -156,6 +156,8 @@ cd ../02-env-admin-product-team/
 cd ../active-passive/
 # run confluent cli
 confluent kafka mirror describe cmorders --cluster $cluster_destination_id --environment $destination_envid --link passive-primary-secondary-cluster
+# run link task for active-passive Clink (confluent version 3.53 is needed for a task list)
+./00_run_link_task.sh
 ```
 
 ### Fail Forward or Fail-and-stay
@@ -259,6 +261,8 @@ kubectl logs dr-cloudconsumercmcustomers-primary-0 -n confluent
 kubectl logs dr-cloudconsumercmcustomers-secondary-0 -n confluent
 kubectl logs dr-cloudproducercmcustomers-primary-0 -n confluent
 kubectl logs dr-cloudproducercmcustomers-secondary-0 -n confluent
+# Check Link task status of both active-active Links (confluent version 3.53 is needed for a task list)
+./00_run_link_task.sh
 ```
 
 We do have now following clients structure:
