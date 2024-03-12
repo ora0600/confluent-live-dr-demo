@@ -25,7 +25,7 @@ spec:
         - /bin/sh
         - -c
         - |
-          for x in {1..1000}; do echo "{"number":$x,"date":18500$x,"shipping_address":"shipping street $x, $x Shipping-City, Global","cost":$x}"; sleep 2; done | kafka-console-producer --bootstrap-server  $(awk '/bootstrap.servers=/{print $NF}' /mnt/kafkatools_producer_secondary.properties | cut -d'=' -f 2) --topic cmcustomers --producer.config /mnt/kafkatools_producer_secondary.properties
+          for x in {2001..3000}; do echo "{"number":$x,"date":18500$x,"shipping_address":"shipping street $x, $x Shipping-City, Global","cost":$x}"; sleep 2; done | kafka-console-producer --bootstrap-server  $(awk '/bootstrap.servers=/{print $NF}' /mnt/kafkatools_producer_secondary.properties | cut -d'=' -f 2) --topic cmcustomers --producer.config /mnt/kafkatools_producer_secondary.properties
         volumeMounts:
         - name: kafka-properties
           mountPath: /mnt
