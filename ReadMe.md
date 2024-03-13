@@ -14,7 +14,7 @@ If do not have a k8s cluster running, I did also put some client shell scripts i
 
 ## pre-reqs for running this lab - Live-DR-Demos
 
-* Confluent cli installed on your desktop. [Install Confluent cli](https://docs.confluent.io/confluent-cli/current/install.html)
+* Confluent cli installed on your desktop (version 3.53 we need the link task status feature). [Install Confluent cli](https://docs.confluent.io/confluent-cli/current/install.html)
 * Confluent Cloud Account
 * One Confluent Cloud API Key as OrgAdmin with service Account aligned (tf_runner, im my case tf_cmrunner with Organization Admin Role alignment)
     1. Create a [service account](https://docs.confluent.io/cloud/current/access-management/identity/service-accounts.html) called tf_runner in Confluent Cloud
