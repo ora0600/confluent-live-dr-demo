@@ -1,6 +1,6 @@
 # Live DR Demo Setup
 
-Welcome to the Disaster Recovery Demo repo. This Demo is split into 4 Parts.
+Welcome to the Disaster Recovery Demo repo. This Demo is split into 3 Parts.
 
 1. Part: **delegated Administration**: How to split Infra-Team (OrgAdmin) from Product Team (Environment and Cluster Admin). This is a kind of delegated Administration. And finally in this part we will build a prod-cluster in Confluent Cloud. For cold-restore and active-passive geo-replication setup we will use Basic cluster, active-active geo-replication setup we will use a dedicated cluster type (this is a requirement of bi-directional cluster links).
 2. Part: **Cold Restore**: How to build after a broken prod cluster, the same cluster into a different CSP and region and failover the clients after a short downtime. Cold-Restore. We will build the same cluster in a different location and switch the client to the new cluster automatically by changing the connection details in our client properties (secrets).
