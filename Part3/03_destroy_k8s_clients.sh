@@ -2,7 +2,7 @@
 
 echo "*************************** PODS *******************************"
 kubectl get pods -n confluent
-kubectl delete  -f prod-cloudconsumercmorders.yaml  --namespace confluevnt
+kubectl delete  -f prod-cloudconsumercmorders.yaml  --namespace confluent
 kubectl delete  -f dr-cloudproducercmcustomers-primary.yaml  --namespace confluent
 kubectl delete  -f dr-cloudproducercmcustomers-secondary.yaml  --namespace confluent
 kubectl delete  -f prod-cloudproducercmorders.yaml  --namespace confluent
