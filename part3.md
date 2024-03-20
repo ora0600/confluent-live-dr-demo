@@ -150,11 +150,9 @@ kubectl logs prod-cloudconsumercmorders-0 -n confluent
 ./00_list_all_topics.sh
 # check if offset on secondary cluster looks good
 ./00_run_offset_monitor.sh
-# compare with offset from prod cluster
-cd ../02-env-admin-product-team/
-./00_run_offset_monitor.sh
-cd ../active-passive/
-# run confluent cli
+# run confluent cli, to Last Source Fetch Offset
+# How do I know the data was successfully copied to the destination and can be safely deleted from the source topic? 
+# Check “Last Source Fetch Offset.” Anything before that offset in that partition has been replicated.
 confluent kafka mirror describe cmorders --cluster $cluster_destination_id --environment $destination_envid --link passive-primary-secondary-cluster
 # run link task for active-passive Clink (confluent version 3.53 is needed for a task list)
 ./00_run_link_task.sh
@@ -195,6 +193,7 @@ If the prod cluster will come back (temp outage) and there could be some data wh
 ```bash
 source env-destination
 confluent kafka mirror describe cmorders --cluster $cluster_destination_id --environment $destination_envid --link passive-primary-secondary-cluster
+# Last Source Fetch Offset was time we start stop mirroring (or do failover)
 #  Link Name      |Mirror Topic| Source Topic | Mirror Status | Status Time (ms) | Partition | Partition Mirror Lag | Last Source Fetch Offset  
 #-----------------+------------+--------------+---------------+------------------+-----------+----------------------+--------------------------
 #  passive-primary| cmorders   | cmorders     | STOPPED       |    1708443298951 |         0 |                    0 |                     1368  
@@ -212,7 +211,6 @@ First switch back clients to Primary Cloud:
 * The consumer for cmorders
 
 ```bash
-cd ../active-passive
 ./01_switchback_client.properties.sh 
 kubectl get pods -n confluent
 kubectl logs prod-cloudconsumercmorders-0 -n confluent
@@ -244,7 +242,7 @@ confluent kafka link describe active-secondary-primary-cluster --cluster $cluste
 The idea now is follow that [tutorial](https://docs.confluent.io/cloud/current/multi-cloud/cluster-linking/dr-failover.html#active-active-tutorial) in a script.
 
 * Create writable topics
-    a. prod: cmorders on dr: mirror-cmorders
+    a. prod: cmcustomers on dr: mirror-cmcustomers
 * Create one cluster link in bidirectional mode
 
 We follow here the SLA DR Plan: do not copy the complete content from primary cluster to secondary cluster and vice verso. We have special SLA for special resources. We call it Gold SLA.
@@ -263,6 +261,28 @@ kubectl logs dr-cloudproducercmcustomers-primary-0 -n confluent
 kubectl logs dr-cloudproducercmcustomers-secondary-0 -n confluent
 # Check Link task status of both active-active Links (confluent version 3.53 is needed for a task list)
 ./00_run_link_task.sh
+# Your will see an error because I used different names for the cluster link in both clusters. To better show the case.
+#Show Link Task of cluster link active-primary-secondary-cluster in primary cluster: 
+#      Task Name      |     State      |             Errors              
+#---------------------+----------------+---------------------------------
+#  AclSync            | NOT_CONFIGURED |                                 
+#  AutoCreateMirror   | NOT_CONFIGURED |                                 
+#  ConsumerOffsetSync | IN_ERROR       | REMOTE_LINK_NOT_FOUND_ERROR:    
+#                     |                | "Failed to get remote link      
+#                     |                | config due to link not being    
+#                     |                | found on the remote cluster."   
+#  TopicConfigsSync   | ACTIVE         |                                 
+#
+#Show Link Task of cluster link active-secondary-primary-cluster in secondary cluster: 
+#      Task Name      |     State      |             Errors              
+#---------------------+----------------+---------------------------------
+#  AclSync            | NOT_CONFIGURED |                                 
+#  AutoCreateMirror   | NOT_CONFIGURED |                                 
+#  ConsumerOffsetSync | IN_ERROR       | REMOTE_LINK_NOT_FOUND_ERROR:    
+#                     |                | "Failed to get remote link      
+#                     |                | config due to link not being    
+#                     |                | found on the remote cluster."   
+#  TopicConfigsSync   | ACTIVE         |                    
 ```
 
 We do have now following clients structure:
@@ -283,17 +303,13 @@ The next script show the cycle of mirror between clusters. Here you need iTerm i
 # Check Mirror Cycle
 ./01_check_mirror_cycle.sh
 # Or manually
-# Primary topics consumer group simualation
+# Primary topics consumer group simulation
 kafka-console-consumer --bootstrap-server  $(awk '/bootstrap.servers=/{print $NF}' ../kafkatools_consumer_primary.properties | cut -d'=' -f 2) --topic cmcustomers --consumer.config ../kafkatools_consumer_primary.properties
 kafka-console-consumer --bootstrap-server  $(awk '/bootstrap.servers=/{print $NF}' ../kafkatools_consumer_primary.properties | cut -d'=' -f 2) --topic mirror-cmcustomers --consumer.config ../kafkatools_consumer_primary.properties
 # Secondary topics consumer group simulation
 kafka-console-consumer --bootstrap-server  $(awk '/bootstrap.servers=/{print $NF}' ../kafkatools_consumer_secondary.properties | cut -d'=' -f 2) --topic cmcustomers --consumer.config ../kafkatools_consumer_secondary.properties
 kafka-console-consumer --bootstrap-server  $(awk '/bootstrap.servers=/{print $NF}' ../kafkatools_consumer_secondary.properties | cut -d'=' -f 2) --topic mirror-cmcustomers --consumer.config ../kafkatools_consumer_secondary.properties
 ```
-
-Bug: Consumer on cmcustomers in primary cluster (first window in iterm), do not show any data. Please use cloud UI instead.
-
-
 We did setup an active-active disaster recovery setup for `cmcustomers` topic.
 ![DR setup](img/cmcustomer_dr_setup.png)
 

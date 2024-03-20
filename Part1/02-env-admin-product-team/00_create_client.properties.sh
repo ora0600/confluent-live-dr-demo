@@ -143,6 +143,18 @@ kubectl apply -f ../cloudconsumercmorders.yaml --namespace confluent
 kubectl apply -f ../cloudconsumercmcustomers.yaml --namespace confluent
 kubectl apply -f ../cloudconsumercmproducts.yaml --namespace confluent
 
+
+#kubectl delete -f ../cloudconsumercmorders.yaml --namespace confluent
+#kubectl delete -f ../cloudconsumercmproducts.yaml --namespace confluent
+#kubectl delete -f ../cloudproducercmproducts.yaml --namespace confluent
+#kubectl delete -f ../cloudconsumercmcustomers.yaml --namespace confluent
+#kubectl delete -f ../cloudproducercmcustomers.yaml --namespace confluent
+#kubectl delete -f ../cloudproducercmorders.yaml --namespace confluent
+#kubectl delete secret kafka-client-consumer-config-secure --namespace confluent
+#kubectl delete secret kafka-client-producer-config-secure --namespace confluent
+
+
+
 # Client 2:
 # Start Terminal for Shell Client (COMMENTED)
 #echo ""

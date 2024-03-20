@@ -39,7 +39,7 @@ sasl.mechanisms=PLAIN
 sasl.username=$consumerkey
 sasl.password=$consumersecret
 session.timeout.ms=45000
-group.id=$groupid
+group.id=$groupid-primary
 auto.offset.reset=latest
 default.api.timeout.ms=300000" > ../client_consumer_primary.properties
 
@@ -63,7 +63,7 @@ sasl.mechanism=PLAIN
 client.dns.lookup=use_all_dns_ips
 # Best practice for higher availability in Apache Kafka clients prior to 3.0
 session.timeout.ms=45000
-group.id=$groupid
+group.id=$groupid-primary
 auto.offset.reset=latest
 default.api.timeout.ms=300000" >  ../kafkatools_consumer_primary.properties
 cp ../kafkatools_consumer_primary.properties ../kafkatools_consumer.properties
@@ -77,7 +77,7 @@ sasl.mechanism=PLAIN
 client.dns.lookup=use_all_dns_ips
 # Best practice for higher availability in Apache Kafka clients prior to 3.0
 session.timeout.ms=45000
-group.id=$groupid
+group.id=$groupid-secondary
 auto.offset.reset=latest
 default.api.timeout.ms=300000" >  ../kafkatools_consumer_secondary.properties
 
@@ -119,7 +119,7 @@ sasl.mechanism=PLAIN
 client.dns.lookup=use_all_dns_ips
 # Best practice for higher availability in Apache Kafka clients prior to 3.0
 session.timeout.ms=45000
-group.id=$groupid
+group.id=$groupid-primary
 default.api.timeout.ms=300000" >  ../kafkatools_prod_consumer_offset_primary.properties
 
 # Consumer Offset Monitoring:
@@ -132,7 +132,7 @@ sasl.mechanism=PLAIN
 client.dns.lookup=use_all_dns_ips
 # Best practice for higher availability in Apache Kafka clients prior to 3.0
 session.timeout.ms=45000
-group.id=$groupid
+group.id=$groupid-secondary
 default.api.timeout.ms=300000" >  ../kafkatools_prod_consumer_offset_secondary.properties
 
 echo "export source_envid=$source_envid
