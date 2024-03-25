@@ -8,6 +8,7 @@ kubectl delete  -f dr-cloudproducercmcustomers-secondary.yaml  --namespace confl
 kubectl delete  -f prod-cloudproducercmorders.yaml  --namespace confluent
 kubectl delete  -f dr-cloudconsumercmcustomers-primary.yaml  --namespace confluent
 kubectl delete  -f dr-cloudconsumercmcustomers-secondary.yaml  --namespace confluent
+
 # all pods should be terminated or in termination
 echo "*************************** PODS *******************************"
 kubectl get pods -n confluent

@@ -6,7 +6,7 @@
 # Create cluster Link bi-directional primary - secondary (active)
 # -----------------------------------------------------------------------
 resource "confluent_cluster_link" "active-primary-secondary-cluster" {
-  link_name = "active-primary-secondary-cluster"
+  link_name = "bidirectional"
   link_mode = "BIDIRECTIONAL"
   local_kafka_cluster {
     id                 = confluent_kafka_cluster.primary.id
@@ -46,7 +46,7 @@ resource "confluent_cluster_link" "active-primary-secondary-cluster" {
 # Create cluster Link bi-directional secondary - primary  (active)
 # -----------------------------------------------------------------------
 resource "confluent_cluster_link" "active-secondary-primary-cluster" {
-  link_name = "active-secondary-primary-cluster"
+  link_name = "bidirectional"
   link_mode = "BIDIRECTIONAL"
   local_kafka_cluster {
     id                 = confluent_kafka_cluster.secondary.id

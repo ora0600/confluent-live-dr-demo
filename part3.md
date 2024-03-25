@@ -77,7 +77,7 @@ terraform output resource-ids
 Two dedicated cluster in two different regions and two different cloud providers are created. This is Gold-Standard for DR.
 ![DR Design clusters](img/clusters.png)
 
-These clusters are linked with three cluster links.
+These clusters are linked with three cluster links or better 2 cluster links. The bidirectional link in created as one link in each cluster under the same name.
 ![DR Design clusters](img/cluster_links.png)
 
 Now, you can start the clients:
@@ -94,7 +94,7 @@ In total I started 6 clients on prod cluster
 * 3 Producer
 ![producers](img/producer.png)
 
-* And we have clients for the cluster links running.
+* And we have clients for the cluster links running (test topic is mirrored).
 
 ## Active-Passive Cluster setup
 
@@ -133,7 +133,10 @@ After fail-over and client switch, only two clients are running on secondary clu
 
 ![clients on secondary cluster](img/client_secondary_cluster.png)
 
-Now, you can play a little bit in the Cloud UI. This is quite interesting.
+The mirror topic is stopped.
+![mirror topic stopped](img/mirror_topic_stopped.png)
+
+Now, you can play a little bit in the Cloud UI. This is quite interesting. But be aware the status update in UI takes a moment.
 Check:
 
 * Cluster Linking Menu (left side)
@@ -220,7 +223,7 @@ kubectl logs prod-cloudconsumercmorders-0 -n confluent
 
 The offset is now again very different. On Primary we start where we leave, on Secondary we do have higher offset, because we failed-over and switched clients.
 
-For the active-active Part we use bi-directional Cluster Link `active-primary-secondary-cluster` and `active-secondary-primary-cluster`.
+For the active-active Part we use bi-directional Cluster Link `bidirectional` on both clusters.
 
 The cluster link will get the following config set:
 * consumer.offset.sync.enable=true
@@ -235,8 +238,8 @@ The cluster link will get the following config set:
 ```bash
 cd ../active-active
 source env-destination
-confluent kafka link describe active-primary-secondary-cluster --cluster $cluster_source_id --environment $source_envid
-confluent kafka link describe active-secondary-primary-cluster --cluster $cluster_destination_id --environment $destination_envid
+confluent kafka link describe bidirectional --cluster $cluster_source_id --environment $source_envid
+confluent kafka link describe bidirectional --cluster $cluster_destination_id --environment $destination_envid
 ```
 
 The idea now is follow that [tutorial](https://docs.confluent.io/cloud/current/multi-cloud/cluster-linking/dr-failover.html#active-active-tutorial) in a script.
@@ -262,27 +265,21 @@ kubectl logs dr-cloudproducercmcustomers-secondary-0 -n confluent
 # Check Link task status of both active-active Links (confluent version 3.53 is needed for a task list)
 ./00_run_link_task.sh
 # Your will see an error because I used different names for the cluster link in both clusters. To better show the case.
-#Show Link Task of cluster link active-primary-secondary-cluster in primary cluster: 
-#      Task Name      |     State      |             Errors              
-#---------------------+----------------+---------------------------------
-#  AclSync            | NOT_CONFIGURED |                                 
-#  AutoCreateMirror   | NOT_CONFIGURED |                                 
-#  ConsumerOffsetSync | IN_ERROR       | REMOTE_LINK_NOT_FOUND_ERROR:    
-#                     |                | "Failed to get remote link      
-#                     |                | config due to link not being    
-#                     |                | found on the remote cluster."   
-#  TopicConfigsSync   | ACTIVE         |                                 
+#Show Link Task of cluster link bidirectional in primary cluster: 
+#      Task Name      |     State      | Errors  
+#---------------------+----------------+---------
+#  AclSync            | NOT_CONFIGURED |         
+#  AutoCreateMirror   | NOT_CONFIGURED |         
+#  ConsumerOffsetSync | ACTIVE         |         
+#  TopicConfigsSync   | ACTIVE         |         
 #
-#Show Link Task of cluster link active-secondary-primary-cluster in secondary cluster: 
-#      Task Name      |     State      |             Errors              
-#---------------------+----------------+---------------------------------
-#  AclSync            | NOT_CONFIGURED |                                 
-#  AutoCreateMirror   | NOT_CONFIGURED |                                 
-#  ConsumerOffsetSync | IN_ERROR       | REMOTE_LINK_NOT_FOUND_ERROR:    
-#                     |                | "Failed to get remote link      
-#                     |                | config due to link not being    
-#                     |                | found on the remote cluster."   
-#  TopicConfigsSync   | ACTIVE         |                    
+#Show Link Task of cluster link bidirectionalin secondary cluster: 
+#      Task Name      |     State      | Errors  
+#---------------------+----------------+---------
+#  AclSync            | NOT_CONFIGURED |         
+#  AutoCreateMirror   | NOT_CONFIGURED |         
+#  ConsumerOffsetSync | ACTIVE         |         
+#  TopicConfigsSync   | ACTIVE         |               
 ```
 
 We do have now following clients structure:
@@ -310,6 +307,7 @@ kafka-console-consumer --bootstrap-server  $(awk '/bootstrap.servers=/{print $NF
 kafka-console-consumer --bootstrap-server  $(awk '/bootstrap.servers=/{print $NF}' ../kafkatools_consumer_secondary.properties | cut -d'=' -f 2) --topic cmcustomers --consumer.config ../kafkatools_consumer_secondary.properties
 kafka-console-consumer --bootstrap-server  $(awk '/bootstrap.servers=/{print $NF}' ../kafkatools_consumer_secondary.properties | cut -d'=' -f 2) --topic mirror-cmcustomers --consumer.config ../kafkatools_consumer_secondary.properties
 ```
+
 We did setup an active-active disaster recovery setup for `cmcustomers` topic.
 ![DR setup](img/cmcustomer_dr_setup.png)
 
@@ -319,14 +317,17 @@ Now, you can play a little bit in the Cloud UI. This is quite interesting. Check
 * Show Topics in secondary Cluster, is data coming from primary cluster?
 * etc.
 
-Play-Around with active-active setup now. See [docu](https://docs.confluent.io/cloud/current/multi-cloud/cluster-linking/dr-failover.html#active-active-tutorial) 
+Play-Around with active-active setup now. See [docu](https://docs.confluent.io/cloud/current/multi-cloud/cluster-linking/dr-failover.html#active-active-tutorial).
+
+This 20 March the new `reverse-and-start` feature is GA. This will be best for planned DR, like exercises. Please see [documentation](https://docs.confluent.io/cloud/current/multi-cloud/cluster-linking/mirror-topics-cc.html#reverse-a-source-and-mirror-topic).
 
 ## Destroy dedicated cluster setup
 
 ### Clients
 
 ```bash
-cd Part3/
+# cd Part3/
+cd ..
 ./03_destroy_k8s_clients.sh
 ```
 
@@ -346,6 +347,9 @@ sudo shutdown -h now
 ### Confluent cloud cluster
 
 delete the mirror topics first in Cloud UI: Look at each link.
+We really need **0 mirror topics**.
+![0 mirror topics](img/no_mirrors.png)
+
 
 ```bash
 cd 02-env-admin-product-team/
@@ -355,6 +359,9 @@ terraform destroy
 # Environments
 cd ../01-kafka-ops-team/
 terraform destroy
+# Properties Files
+cd ..
+rm *.properties
 ```
 
 When you got no errors all Confluent Cloud resources should be deleted now.
