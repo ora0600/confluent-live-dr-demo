@@ -1,0 +1,43 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: prod-cloudconsumercmtopic
+  namespace: confluent
+  annotations:
+    reloader.stakater.com/auto: "true"
+spec:
+  serviceName: prod-cloudconsumercmtopic
+  podManagementPolicy: Parallel
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prod-cloudconsumercmtopic
+  template:
+    metadata:
+      labels:
+        app: prod-cloudconsumercmtopic
+    spec:
+      containers:
+      - name: prod-cloudconsumercmtopic
+        image: confluentinc/cp-kafka:latest
+        command:
+        - /bin/sh
+        - -c
+        - |
+          kafka-console-consumer --bootstrap-server  $(awk '/bootstrap.servers=/{print $NF}' /mnt/kafkatools_consumer.properties | cut -d'=' -f 2) --topic cmtopic --consumer.config /mnt/kafkatools_consumer.properties
+        volumeMounts:
+        - name: kafka-properties
+          mountPath: /mnt
+      volumes:
+        - name: kafka-properties # Create secret with name `kafka-client-config` with client configurations
+          secret:
+            secretName: prod-cloudconsumercmtopic-config-secure
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prod-cloudconsumercmtopic
+  namespace: confluent
+spec:
+  clusterIP: None

@@ -9,7 +9,7 @@ output "resource-ids" {
   ${confluent_service_account.cmenv-drmanager.display_name}'s Cloud API Secret:  "${confluent_api_key.cmenv-drmanager-cloud-api-key.secret}"
 
   Please execute the following:
-  source env-vars
+  source ../02-env-admin-product-team/env-vars
   and then switch to 02-env-admin-product-team
   cd ../02-env-admin-product-team
   and create the cloud cluster resources for the DR design setup

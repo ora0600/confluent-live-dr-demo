@@ -23,6 +23,7 @@ export appmanagersecret_secondary=${19}
 export source_envid=${20}
 export consumer_said=${21}
 export producer_said=${22}
+export appmanager_said=${23}
 
 # From Output
 #export consumerkey=$(echo -e "$(terraform output -raw consumer_key)")
@@ -153,7 +154,13 @@ export source_bootstrap=$bootstrap
 export destination_bootstrap=$bootstrap_secondary
 export groupid=$groupid
 export consumer_said=$consumer_said
-export producer_said=$producer_said" > ../active-active/env-destination
+export producer_said=$producer_said
+export appmanager_said=$appmanager_said
+export appmanagerkey-primary=$appmanagerkey
+export appmanagersecret-primary=$appmanagersecret
+export appmanagerkey_secondary=$appmanagerkey_secondary
+export appmanagersecret_secondary=$appmanagersecret_secondary" > ../active-active/env-destination
+
 
 
 # Copy env File to active Passive Setup

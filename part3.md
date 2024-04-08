@@ -83,8 +83,11 @@ These clusters are linked with three cluster links or better 2 cluster links. Th
 Now, you can start the clients:
 
 ```bash
+# Before starting the clients, have your k8s cluster up and running
 ./00_start_clients.sh
 ```
+
+pod_status=$(kubectl get pods -n confluent -o jsonpath="{.items[?(@.metadata.name.includes('$pod_name'))].status.phase}")
 
 In total I started 6 clients on prod cluster
 
@@ -123,7 +126,7 @@ In our case we do have only one topic which needs to be geo-replicated because o
 cd ../active-passive/
 source env-destination 
 ./scripts/00_create_mirror_topics.sh
-# Press Enter if you asked for
+# Press Enter if you asked for and follow the description in script
 ```
 
 After fail-over and client switch, only two clients are running on secondary cluster:
@@ -223,6 +226,8 @@ kubectl logs prod-cloudconsumercmorders-0 -n confluent
 
 The offset is now again very different. On Primary we start where we leave, on Secondary we do have higher offset, because we failed-over and switched clients.
 
+**Let's do the active-active setup**:
+
 For the active-active Part we use bi-directional Cluster Link `bidirectional` on both clusters.
 
 The cluster link will get the following config set:
@@ -238,21 +243,38 @@ The cluster link will get the following config set:
 ```bash
 cd ../active-active
 source env-destination
+# Check status bidirectional link
 confluent kafka link describe bidirectional --cluster $cluster_source_id --environment $source_envid
+#+---------------------+---------------+
+#| Name                | bidirectional |
+#| Source Cluster      |               |
+#| Destination Cluster |               |
+#| Remote Cluster      | lkc-x6XXXk    |
+#| State               | ACTIVE        |
+#+---------------------+---------------+
 confluent kafka link describe bidirectional --cluster $cluster_destination_id --environment $destination_envid
+#+---------------------+---------------+
+#| Name                | bidirectional |
+#| Source Cluster      |               |
+#| Destination Cluster |               |
+#| Remote Cluster      | lkc-v8XXX5    |
+#| State               | ACTIVE        |
+#+---------------------+---------------+
 ```
+Both parts should be active.
 
-The idea now is follow that [tutorial](https://docs.confluent.io/cloud/current/multi-cloud/cluster-linking/dr-failover.html#active-active-tutorial) in a script.
+
+The idea is to follow that [tutorial](https://docs.confluent.io/cloud/current/multi-cloud/cluster-linking/dr-failover.html#active-active-tutorial) in a script.
 
 * Create writable topics
     a. prod: cmcustomers on dr: mirror-cmcustomers
-* Create one cluster link in bidirectional mode
+* Create a bidirectional cluster link (this is done)
 
-We follow here the SLA DR Plan: do not copy the complete content from primary cluster to secondary cluster and vice verso. We have special SLA for special resources. We call it Gold SLA.
-There are couple resources marked as GOLD  and documented in `cat scripts/sla_gold_topics.txt`. Only these resources will be mirrored in on both clusters.
+We follow here again the idea of a SLA DR Plan: do not copy the complete content from primary cluster to secondary cluster and vice versa. We have special SLA for special resources. We call it the "**Gold topic SLA**".
+There are couple resources marked as GOLD  and documented in `cat scripts/sla_gold_topics.txt`. Only these resources will be mirrored in both clusters.
 
 Running the SLA based DR Plan: 
-In our case we do have only one topic which needs to be geo-replicated because of high HA requirements.
+In our case we do have only one topic which needs to be geo-replicated because of high HA requirements. Please do not forget, this is a DR application design task.
 
 ```bash
 ./scripts/00_create_mirror_topics.sh
@@ -265,7 +287,7 @@ kubectl logs dr-cloudproducercmcustomers-secondary-0 -n confluent
 # Check Link task status of both active-active Links (confluent version 3.53 is needed for a task list)
 ./00_run_link_task.sh
 # Your will see an error because I used different names for the cluster link in both clusters. To better show the case.
-#Show Link Task of cluster link bidirectional in primary cluster: 
+# Show Link Task of cluster link bidirectional in primary cluster: 
 #      Task Name      |     State      | Errors  
 #---------------------+----------------+---------
 #  AclSync            | NOT_CONFIGURED |         
@@ -273,7 +295,7 @@ kubectl logs dr-cloudproducercmcustomers-secondary-0 -n confluent
 #  ConsumerOffsetSync | ACTIVE         |         
 #  TopicConfigsSync   | ACTIVE         |         
 #
-#Show Link Task of cluster link bidirectionalin secondary cluster: 
+# Show Link Task of cluster link bidirectional secondary cluster: 
 #      Task Name      |     State      | Errors  
 #---------------------+----------------+---------
 #  AclSync            | NOT_CONFIGURED |         
@@ -292,7 +314,6 @@ We do have now following clients structure:
 * Secondary
   * dr-cloudproducercmcustomers-secondary and
   * dr-cloudconsumercmcustomers-secondary
-
 
 The next script show the cycle of mirror between clusters. Here you need iTerm installed and a MAC. I am using OASCRIPT here:
 
@@ -319,7 +340,43 @@ Now, you can play a little bit in the Cloud UI. This is quite interesting. Check
 
 Play-Around with active-active setup now. See [docu](https://docs.confluent.io/cloud/current/multi-cloud/cluster-linking/dr-failover.html#active-active-tutorial).
 
-This 20 March the new `reverse-and-start` feature is GA. This will be best for planned DR, like exercises. Please see [documentation](https://docs.confluent.io/cloud/current/multi-cloud/cluster-linking/mirror-topics-cc.html#reverse-a-source-and-mirror-topic).
+Delete all k8s clients runinng in K8s:
+
+```bash
+# delete all clients to have a better view with our next lesson
+cd ..
+./03_destroy_k8s_clients.sh
+```
+
+## Planned DR Exercise with bi-directional cluster link setup
+
+Till 20 March the new `reverse-and-start` feature is GA. This will be best for planned DR, like exercises. Please see [documentation](https://docs.confluent.io/cloud/current/multi-cloud/cluster-linking/mirror-topics-cc.html#reverse-a-source-and-mirror-topic).
+
+We do a planned DR exercise in 6 simple steps. Here you find the requirements for reverse testing:
+
+* The cluster link must be in Bidirectional mode.
+* Both clusters must be Confluent Cloud Dedicated clusters.
+* Both clusters must be healthy and able to communicate over the network.
+* You must have the CLUSTER:ALTER ACL or the Admin role on the cluster where this command is run.
+
+![Planned DR setup](img/planned_dr.png)
+
+To run a planned DR, I prepared a simple script. Start it and follow the step-by-(press enter) step and see what is happening. We will start with one topic `cmtopic` on primary cluster. This topic will be mirrored, clients will be switched and mirror topic will become main topics etc.... and then we switch back. Let's start and run:
+
+```bash
+# Start script
+cd active-active
+./scripts/01_run_planned_dr.sh
+# please follow instructions in script
+```
+
+After a successful execution you switched from primary to secondary and back to primary without loosing data. 
+Your DR exercise is finished. Now, you can sleep pretty well, because you know, that in a DR case and will know what you should do.
+
+Delete the resource around Planned DR Exercise
+```bash
+./scripts/02_delete_planned_dr.sh
+``
 
 ## Destroy dedicated cluster setup
 
@@ -329,6 +386,7 @@ This 20 March the new `reverse-and-start` feature is GA. This will be best for p
 # cd Part3/
 cd ..
 ./03_destroy_k8s_clients.sh
+./04_destroy_k8s_clients.sh
 ```
 
 ### Shutdown k8s cluster

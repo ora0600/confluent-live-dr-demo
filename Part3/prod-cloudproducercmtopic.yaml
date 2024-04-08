@@ -1,0 +1,43 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: prod-cloudproducercmtopic
+  namespace: confluent
+  annotations:
+    reloader.stakater.com/auto: "true"
+spec:
+  serviceName: prod-cloudproducercmtopic
+  podManagementPolicy: Parallel
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prod-cloudproducercmtopic
+  template:
+    metadata:
+      labels:
+        app: prod-cloudproducercmtopic
+    spec:
+      containers:
+      - name: prod-cloudproducercmtopic
+        image: confluentinc/cp-kafka:latest
+        command:
+        - /bin/sh
+        - -c
+        - |
+          for x in {1..1000}; do echo "{"number":$x,"cost":$x}"; sleep 2; done | kafka-console-producer --bootstrap-server  $(awk '/bootstrap.servers=/{print $NF}' /mnt/kafkatools_producer.properties | cut -d'=' -f 2) --topic cmtopic --producer.config /mnt/kafkatools_producer.properties      
+        volumeMounts:
+        - name: kafka-properties
+          mountPath: /mnt
+      volumes:
+        - name: kafka-properties # Create secret with name `kafka-client-config` with client configurations
+          secret:
+            secretName: prod-cloudproducercmtopic-config-secure
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prod-cloudproducercmtopic
+  namespace: confluent
+spec:
+  clusterIP: None
