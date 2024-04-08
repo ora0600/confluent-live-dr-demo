@@ -376,7 +376,7 @@ Your DR exercise is finished. Now, you can sleep pretty well, because you know, 
 Delete the resource around Planned DR Exercise
 ```bash
 ./scripts/02_delete_planned_dr.sh
-``
+```
 
 ## Destroy dedicated cluster setup
 
