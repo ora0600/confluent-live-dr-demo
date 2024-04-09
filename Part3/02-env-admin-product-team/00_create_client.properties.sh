@@ -156,8 +156,8 @@ export groupid=$groupid
 export consumer_said=$consumer_said
 export producer_said=$producer_said
 export appmanager_said=$appmanager_said
-export appmanagerkey-primary=$appmanagerkey
-export appmanagersecret-primary=$appmanagersecret
+export appmanagerkey_primary=$appmanagerkey
+export appmanagersecret_primary=$appmanagersecret
 export appmanagerkey_secondary=$appmanagerkey_secondary
 export appmanagersecret_secondary=$appmanagersecret_secondary" > ../active-active/env-destination
 

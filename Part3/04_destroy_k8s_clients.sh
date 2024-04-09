@@ -14,7 +14,7 @@ echo "*************************** SECRETS *******************************"
 kubectl get secrets -n confluent
 kubectl delete secret prod-cloudconsumercmtopic-config-secure -n confluent
 kubectl delete secret prod-cloudproducercmtopic-config-secure -n confluent
-kubectl delete prod-cloudconsumercmtopic-mirror-config-secure -n confluent
+kubectl delete secret prod-cloudconsumercmtopic-mirror-config-secure -n confluent
 echo "*************************** SECRETS *******************************"
 kubectl get secrets -n confluent
 echo

@@ -4,8 +4,9 @@ The Part3 covers
 
 * active-passive Cluster DR design
 * active-active Cluster DR design
+* Planned DR exercise with bidirectional Cluster Link
 
-Both are working with Cluster Linking (Replicator is not covered in this repo).
+All are working with Cluster Linking (Replicator is not covered in this repo).
 
 ## Create Dedicated Cluster setup with Cluster Links
 
@@ -322,10 +323,14 @@ The next script show the cycle of mirror between clusters. Here you need iTerm i
 ./01_check_mirror_cycle.sh
 # Or manually
 # Primary topics consumer group simulation
+# Topic on primary
 kafka-console-consumer --bootstrap-server  $(awk '/bootstrap.servers=/{print $NF}' ../kafkatools_consumer_primary.properties | cut -d'=' -f 2) --topic cmcustomers --consumer.config ../kafkatools_consumer_primary.properties
+# Mirror topic on primary
 kafka-console-consumer --bootstrap-server  $(awk '/bootstrap.servers=/{print $NF}' ../kafkatools_consumer_primary.properties | cut -d'=' -f 2) --topic mirror-cmcustomers --consumer.config ../kafkatools_consumer_primary.properties
 # Secondary topics consumer group simulation
+# topic on secondary
 kafka-console-consumer --bootstrap-server  $(awk '/bootstrap.servers=/{print $NF}' ../kafkatools_consumer_secondary.properties | cut -d'=' -f 2) --topic cmcustomers --consumer.config ../kafkatools_consumer_secondary.properties
+# mirror topic on secondary
 kafka-console-consumer --bootstrap-server  $(awk '/bootstrap.servers=/{print $NF}' ../kafkatools_consumer_secondary.properties | cut -d'=' -f 2) --topic mirror-cmcustomers --consumer.config ../kafkatools_consumer_secondary.properties
 ```
 
@@ -340,7 +345,7 @@ Now, you can play a little bit in the Cloud UI. This is quite interesting. Check
 
 Play-Around with active-active setup now. See [docu](https://docs.confluent.io/cloud/current/multi-cloud/cluster-linking/dr-failover.html#active-active-tutorial).
 
-Delete all k8s clients runinng in K8s:
+Delete all k8s clients running in K8s:
 
 ```bash
 # delete all clients to have a better view with our next lesson
@@ -385,7 +390,7 @@ Delete the resource around Planned DR Exercise
 ```bash
 # cd Part3/
 cd ..
-./03_destroy_k8s_clients.sh
+#./03_destroy_k8s_clients.sh
 ./04_destroy_k8s_clients.sh
 ```
 

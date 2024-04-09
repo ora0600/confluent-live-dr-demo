@@ -23,11 +23,23 @@ confluent login
 # Create topic on primary
 echo "************* Start Primary Setup *************"
 echo "create topic $topicname on primary cluster"
+# Appmanager
 confluent kafka topic create $topicname --partitions 1 --cluster $aID --environment $aEnv
 confluent kafka acl create --allow --service-account $saID --operations read,describe-configs --topic $topicname --cluster $aID --environment $aEnv
 confluent kafka acl create --allow --service-account $saID --operations describe,alter --cluster-scope --cluster $aID --environment $aEnv
 confluent kafka acl create --allow --service-account $saID --operations read,describe-configs --topic $topicname --cluster $bID --environment $bEnv
 confluent kafka acl create --allow --service-account $saID --operations describe,alter --cluster-scope --cluster $bID --environment $bEnv
+# Consumer
+confluent kafka acl create --allow --service-account $consumer_said --operations read,describe-configs --topic $topicname --cluster $aID --environment $aEnv
+confluent kafka acl create --allow --service-account $consumer_said --operations describe,alter --cluster-scope --cluster $aID --environment $aEnv
+confluent kafka acl create --allow --service-account $consumer_said --operations read,describe-configs --topic $topicname --cluster $bID --environment $bEnv
+confluent kafka acl create --allow --service-account $consumer_said --operations describe,alter --cluster-scope --cluster $bID --environment $bEnv
+# Producer
+confluent kafka acl create --allow --service-account $producer_said --operations write,describe-configs --topic $topicname --cluster $aID --environment $aEnv
+confluent kafka acl create --allow --service-account $producer_said --operations describe,alter --cluster-scope --cluster $aID --environment $aEnv
+confluent kafka acl create --allow --service-account $producer_said --operations write,describe-configs --topic $topicname --cluster $bID --environment $bEnv
+confluent kafka acl create --allow --service-account $producer_said --operations describe,alter --cluster-scope --cluster $bID --environment $bEnv
+
 echo "************* Create CLs *************"
 echo "** bidirectional link on both sides **"
 echo "link.mode=BIDIRECTIONAL" > bidirectional-link.config
@@ -128,7 +140,7 @@ kubectl create secret generic prod-cloudproducercmtopic-config-secure --save-con
 kubectl create secret generic prod-cloudconsumercmtopic-mirror-config-secure --save-config --dry-run=client --from-file=../kafkatools_consumer-mirror.properties -o yaml | kubectl apply -f -
 # Show pods
 kubectl get pods -n confluent
-echo "Check in Cloud UI under cluster link bidirectional-woprefix if mirroring (primary cluster), producing and consuming (secondary cluster) is working."
+echo "Check in Cloud UI under cluster link bidirectional-link if mirroring (primary cluster), producing and consuming (secondary cluster) is working."
 echo "Press enter to continue with failback (reverse-and-pause and resume)..."
 read
 echo "Do a failback:"
@@ -137,7 +149,9 @@ while read i; do
   if [[ -n "$i" ]]; then
     echo "reverse-and-pause on primary"
     confluent kafka mirror reverse-and-pause ${i} --link bidirectional-link --cluster $aID --environment $aEnv
-    echo "Do resume on secondary cluster"
+    echo "Do resume on secondary cluster and wait 30 seconds"
+    sleep 30
+    echo "confluent kafka mirror resume  ${i}  --link bidirectional-link --cluster $bID --environment $bEnv"
     confluent kafka mirror resume  ${i}  --link bidirectional-link --cluster $bID --environment $bEnv
     echo "describe mirror on primary of stopped"
     confluent kafka mirror describe ${i}  --link bidirectional-link --cluster $aID --environment $aEnv
@@ -146,7 +160,7 @@ while read i; do
     echo "mirror topic from primary is now switched to secondary cluster, and is back in original status"
   fi 
 done <$sla_file
-echo "Check in Cloud UI under cluster link bidirectional-woprefix if mirroring is working (now in secondary)."
+echo "Check in Cloud UI under cluster link bidirectional-link if mirroring is working (now in secondary)."
 echo "Press enter to continue with clients switchover..."
 read
 echo "Stop Clients and restart:"
@@ -160,10 +174,10 @@ kubectl create secret generic prod-cloudproducercmtopic-config-secure --save-con
 kubectl create secret generic prod-cloudconsumercmtopic-mirror-config-secure --save-config --dry-run=client --from-file=../kafkatools_consumer-mirror.properties -o yaml | kubectl apply -f -
 # Show pods
 kubectl get pods -n confluent
-echo "Check in Cloud UI under cluster link bidirectional-woprefix if mirroring (secondary cluster), producing and consuming (primary cluster) is working."
-echo "Show Link Task of cluster bidirectional-woprefix in primary cluster: "
-confluent kafka link task list bidirectional-woprefix --cluster $cluster_source_id --environment $source_envid
+echo "Check in Cloud UI under cluster link bidirectional-link if mirroring (secondary cluster), producing and consuming (primary cluster) is working."
+echo "Show Link Task of cluster bidirectional-link in primary cluster: "
+confluent kafka link task list bidirectional-link --cluster $cluster_source_id --environment $source_envid
 echo ""
-echo "Show Link Task of cluster link bidirectional-woprefix in secondary cluster: "
-confluent kafka link task list bidirectional-woprefix --cluster $cluster_destination_id --environment $destination_envid
+echo "Show Link Task of cluster link bidirectional-link in secondary cluster: "
+confluent kafka link task list bidirectional-link --cluster $cluster_destination_id --environment $destination_envid
 echo "Planned DR exercise is finished, back in ready state"
